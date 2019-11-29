@@ -14,16 +14,15 @@ app = Flask(__name__)
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-@app.route('/', methods=['POST'])
+@app.route('/vk', methods=['POST'])
 def processing():
-    try:
-        data = json.loads(request.data)
-        if 'type' not in data.keys():
-            return 'not vk'
-        else:
-            return main.response_handler(data)
-    except json.decoder.JSONDecodeError:
-        return 'ok'
+    data = request.get_json(force=True)
+    if 'type' not in data:
+        return 'not vk'
+    else:
+        if data['type'] == 'confirmation':
+            return settings.confirmation_token
+        return main.response_handler_for_vk(data)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
