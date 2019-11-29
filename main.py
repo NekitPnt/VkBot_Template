@@ -13,7 +13,7 @@ vk_methods = myVkbot.VkMethods(settings.token, settings.vk_api_version)
 # -----------------------------------------------------------------------------------------------
 
 
-def response_handler(data):
+def response_handler_for_vk(data):
     if data['type'] == 'confirmation':
         return settings.confirmation_token
     elif data['type'] == 'message_new' or data['type'] == 'message_edit':
