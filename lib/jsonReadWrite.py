@@ -1,7 +1,7 @@
 import json
 
 
-def write_json(data, link):
+def write_json(link, data):
     try:
         if type(data) == str:
             data = data.replace("'", '"')
