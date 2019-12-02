@@ -1,4 +1,6 @@
 import json
+import os
+import requests
 import vk
 
 
@@ -9,26 +11,62 @@ class VkMethods:
         self.token = token
         self.service_token = service_token
 
-    def send_message(self, user_id, message="", keyboard=None, attachment=()):
+    def send_message(self, user_id, message="", keyboard=None, attachment=(), dont_parse_links=1):
         if keyboard is None:
             keyboard = {'one_time': True, 'buttons': []}
         # отображение русских клавиш
         keyboard = json.dumps(keyboard, ensure_ascii=False)
 
-        self.api.messages.send(access_token=self.token, user_id=user_id, message=message,
-                               keyboard=keyboard, attachment=attachment)
+        self.api.messages.send(access_token=self.token, user_id=user_id, message=message, keyboard=keyboard,
+                               attachment=attachment, dont_parse_links=dont_parse_links)
+
+    def massive_send_message(self, user_ids, message="", keyboard=None, attachment=(), dont_parse_links=1):
+        if keyboard is None:
+            keyboard = {'one_time': True, 'buttons': []}
+        # отображение русских клавиш
+        keyboard = json.dumps(keyboard, ensure_ascii=False)
+
+        self.api.messages.send(access_token=self.token, user_ids=user_ids, message=message,
+                               keyboard=keyboard, attachment=attachment, dont_parse_links=dont_parse_links)
 
     def send_message_to_chat(self, peer_id, message="", attachment=()):
         self.api.messages.send(access_token=self.token, peer_id=peer_id, message=message, attachment=attachment)
 
-    def typing(self, user_id, group_id, type='typing'):
-        self.api.messages.setActivity(access_token=self.token, user_id=user_id, type=type, group_id=group_id)
+    def set_activity(self, user_id, group_id, activity_type='typing'):
+        self.api.messages.setActivity(access_token=self.token, user_id=user_id, type=activity_type, group_id=group_id)
+
+    def execute(self, code):
+        return self.api.execute(access_token=self.token, code=code)
 
     def check_user_sub(self, group_id, user_id):
         return self.api.groups.isMember(access_token=self.token, group_id=group_id, user_id=user_id)
 
+    def photo_by_id(self, photo_id):
+        return self.api.photos.getById(access_token=self.service_token, photos=photo_id)[0]
+
     def count_wall_posts(self, group_id):
         return self.api.wall.get(access_token=self.service_token, owner_id=group_id, count=1)["count"]
+
+    def is_messages_allowed(self, group_id, user_id):
+        return self.api.messages.isMessagesFromGroupAllowed(
+            access_token=self.token, group_id=group_id, user_id=user_id)['is_allowed']
+
+    def upload_photo_for_vk(self, peer_id, download_link, proxy_file_path='proxy_photo.jpg'):
+        p = requests.get(download_link)
+
+        with open(proxy_file_path, 'wb') as proxy_file:
+            proxy_file.write(p.content)
+
+        file = requests.post(
+            self.api.photos.getMessagesUploadServer(access_token=self.token, peer_id=peer_id)['upload_url'],
+            files={'photo': open(proxy_file_path, 'rb')}).json()
+        photo = self.api.photos.saveMessagesPhoto(access_token=self.token, server=file['server'], photo=file['photo'],
+                                                  hash=file['hash'])[0]
+        att = 'photo%s_%s' % (peer_id, photo['id'])
+
+        os.remove(os.path.abspath(proxy_file_path))
+
+        return att
 
     def get_group_wall(self, group_id, size=None, shift=0):
         if size is None:
@@ -42,6 +80,9 @@ class VkMethods:
                     result.append(j)
 
         return result
+
+    def user_get(self, user_ids, fields):
+        return self.api.users.get(access_token=self.token, user_ids=user_ids, fields=fields)
 
     def user_name(self, user_id):
         # [{'id': id, 'first_name': 'Name', 'last_name': 'Lname'}]
@@ -71,7 +112,7 @@ class VkMethods:
                     color = btn_colors[i[j][1]]
                 elif len(i[j]) == 2:
                     color = btn_colors[i[j][1]]
-                label = i[j][0][:40]
+                label = str(i[j][0])[:40]
                 i[j] = {'action': {'type': 'text', 'payload': payload, 'label': label}, 'color': color}
         keyboard = {'one_time': one_time_flag, 'buttons': buttons}
         return keyboard
